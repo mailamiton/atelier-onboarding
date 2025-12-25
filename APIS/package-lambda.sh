@@ -15,9 +15,19 @@ rm -f lambda-deployment.zip
 echo "📁 Creating deployment directory..."
 mkdir -p deployment
 
-# Install dependencies
-echo "📦 Installing Python dependencies..."
-pip install -r requirements.txt -t deployment/
+# Install dependencies for Lambda (Linux x86_64)
+echo "📦 Installing Python dependencies for AWS Lambda runtime..."
+echo "   (Using platform-specific wheels for manylinux2014_x86_64)"
+
+# Install dependencies with platform-specific wheels
+pip install \
+    --platform manylinux2014_x86_64 \
+    --target deployment/ \
+    --implementation cp \
+    --python-version 3.9 \
+    --only-binary=:all: \
+    --upgrade \
+    -r requirements.txt
 
 # Copy application code
 echo "📋 Copying application code..."

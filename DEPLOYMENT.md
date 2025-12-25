@@ -225,7 +225,7 @@ aws iam attach-role-policy \
 aws lambda create-function \
   --function-name atelier-api-prod \
   --runtime python3.9 \
-  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/atelier-lambda-role \
+  --role arn:aws:iam::841493805509:role/atelier-lambda-role \
   --handler lambda_function.lambda_handler \
   --zip-file fileb://lambda-deployment.zip \
   --timeout 30 \
