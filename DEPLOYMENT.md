@@ -221,20 +221,50 @@ aws iam attach-role-policy \
   --role-name atelier-lambda-role \
   --policy-arn arn:aws:iam::aws:policy/AmazonCognitoPowerUser
 
-# Create Lambda function
+# Create Lambda function (FIRST TIME ONLY)
 aws lambda create-function \
   --function-name atelier-api-prod \
   --runtime python3.9 \
-  --role arn:aws:iam::841493805509:role/atelier-lambda-role \
+  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/atelier-lambda-role \
   --handler lambda_function.lambda_handler \
   --zip-file fileb://lambda-deployment.zip \
   --timeout 30 \
   --memory-size 512 \
+  --region ap-south-1 \
   --environment Variables="{
-    DATABASE_URL=postgresql://atelieradmin:YOUR_DB_PASSWORD@your-rds-endpoint:5432/atelier_db,
+    DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
+    AWS_REGION=ap-south-1,
     AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
     AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
-    JWT_SECRET_KEY=YOUR_SECRET_KEY,
+    AWS_COGNITO_REGION=ap-south-1,
+    SMTP_HOST=smtp.gmail.com,
+    SMTP_PORT=587,
+    SMTP_USER=your-email@gmail.com,
+    SMTP_PASSWORD=YOUR_SMTP_PASSWORD,
+    FROM_EMAIL=noreply@ashishpatelatelier.com,
+    ENVIRONMENT=production,
+    CORS_ORIGINS=https://your-frontend-domain.vercel.app
+  }"
+
+# OR Update existing Lambda function (SUBSEQUENT DEPLOYMENTS)
+# Update function code
+aws lambda update-function-code \
+  --function-name atelier-api-prod \
+  --zip-file fileb://lambda-deployment.zip \
+  --region ap-south-1
+
+# Update function configuration/environment variables
+aws lambda update-function-configuration \
+  --function-name atelier-api-prod \
+  --timeout 30 \
+  --memory-size 512 \
+  --region ap-south-1 \
+  --environment Variables="{
+    DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
+    AWS_REGION=ap-south-1,
+    AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
+    AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
+    AWS_COGNITO_REGION=ap-south-1,
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
     SMTP_USER=your-email@gmail.com,
