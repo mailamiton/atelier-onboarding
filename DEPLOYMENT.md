@@ -70,7 +70,7 @@ aws cognito-idp create-user-pool \
   --pool-name atelier-users-prod \
   --policies '{
     "PasswordPolicy": {
-      "MinimumLength": 8,
+      "MinimumLength": 6,
       "RequireUppercase": true,
       "RequireLowercase": true,
       "RequireNumbers": true,
@@ -191,16 +191,14 @@ alembic upgrade head
 ```bash
 cd APIS
 
-# Create deployment package
-mkdir -p deployment
-pip install -r requirements.txt -t deployment/
-cp -r app deployment/
-cp lambda_function.py deployment/
+# Run the packaging script
+./package-lambda.sh
 
-# Create ZIP
-cd deployment
-zip -r ../lambda-deployment.zip .
-cd ..
+# This script will:
+# - Clean up old deployment artifacts
+# - Install Python dependencies
+# - Copy application code
+# - Create lambda-deployment.zip
 
 # Create IAM role for Lambda
 aws iam create-role \

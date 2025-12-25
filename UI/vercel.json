@@ -1,7 +1,0 @@
-{
-  "buildCommand": "cd UI && npm run build",
-  "devCommand": "cd UI && npm run dev",
-  "installCommand": "cd UI && npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"]
-}
