@@ -233,7 +233,6 @@ aws lambda create-function \
   --region ap-south-1 \
   --environment Variables="{
     DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
-    AWS_REGION=ap-south-1,
     AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
     AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
     AWS_COGNITO_REGION=ap-south-1,
@@ -261,7 +260,6 @@ aws lambda update-function-configuration \
   --region ap-south-1 \
   --environment Variables="{
     DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
-    AWS_REGION=ap-south-1,
     AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
     AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
     AWS_COGNITO_REGION=ap-south-1,
