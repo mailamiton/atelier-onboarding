@@ -6,6 +6,12 @@ set -e  # Exit on error
 
 echo "🚀 Starting Lambda deployment package creation..."
 
+# Check if zip is installed
+if ! command -v zip &> /dev/null; then
+    echo "⚠️  'zip' command not found. Installing..."
+    sudo apt-get update -qq && sudo apt-get install -y zip
+fi
+
 # Clean up old deployment artifacts
 echo "🧹 Cleaning up old deployment artifacts..."
 rm -rf deployment/
