@@ -19,8 +19,13 @@ mkdir -p deployment
 echo "📦 Installing Python dependencies for AWS Lambda runtime..."
 echo "   (Using platform-specific wheels for manylinux2014_x86_64)"
 
-# Install dependencies with platform-specific wheels
-pip install \
+# Deactivate virtual environment if active (to use system Python)
+if [ -n "$VIRTUAL_ENV" ]; then
+    echo "   Detected virtual environment, using system Python instead..."
+fi
+
+# Install dependencies with platform-specific wheels using python3 module
+python3 -m pip install \
     --platform manylinux2014_x86_64 \
     --target deployment/ \
     --implementation cp \
