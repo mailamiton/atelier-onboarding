@@ -178,9 +178,19 @@ CREATE DATABASE atelier_db;
 # Exit psql
 \q
 
-# Run migrations from local machine
+# Run migrations from your server or local machine
 cd APIS
-export DATABASE_URL="postgresql://atelieradmin:YOUR_DB_PASSWORD@your-rds-endpoint.rds.amazonaws.com:5432/atelier_db"
+
+# Activate virtual environment (if on server)
+source .venv/bin/activate
+
+# Install dependencies (if not already installed)
+pip install -r requirements.txt
+
+# Set database connection string
+export DATABASE_URL="postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db"
+
+# Run migrations to create tables
 alembic upgrade head
 ```
 
@@ -225,7 +235,7 @@ aws iam attach-role-policy \
 aws lambda create-function \
   --function-name atelier-api-prod \
   --runtime python3.9 \
-  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/atelier-lambda-role \
+  --role arn:aws:iam::841493805509:role/atelier-lambda-role \
   --handler lambda_function.lambda_handler \
   --zip-file fileb://lambda-deployment.zip \
   --timeout 30 \
