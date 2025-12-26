@@ -1,71 +1,57 @@
-# Deployment Guide
+# Production Deployment Guide
 
-Complete guide for deploying the Atelier Registration & Admin System to production.
+Complete step-by-step guide for deploying the Atelier Registration & Admin System.
 
-## 🎯 Prerequisites
+---
+
+## 📋 **Prerequisites**
 
 ### Required Accounts
-- [ ] AWS Account (Free tier eligible)
-- [ ] Vercel Account (Free tier available)
-- [ ] Domain name (optional but recommended)
-- [ ] SMTP email service (Gmail or custom)
+- [ ] AWS Account with billing enabled
+- [ ] Vercel Account (free tier)
+- [ ] Gmail account for SMTP (or custom SMTP service)
+- [ ] Domain name (optional)
 
 ### Required Tools
 ```bash
-# Node.js and npm
-node --version  # v18+
-npm --version   # v9+
+# Check versions
+node --version    # v18+ required
+npm --version     # v9+ required
+python --version  # v3.9+ required
+aws --version     # AWS CLI v2
+psql --version    # PostgreSQL client
+```
 
-# Python
-python --version  # v3.9+
-
+### Install Tools
+```bash
 # AWS CLI
-aws --version
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Configure AWS
+aws configure
+# Enter: Access Key ID, Secret Access Key, Region (ap-south-1), Output format (json)
 
 # Vercel CLI
-vercel --version
+npm install -g vercel
 
 # PostgreSQL client
-psql --version
+sudo apt-get install postgresql-client
 ```
 
-## 📋 Pre-Deployment Checklist
+---
 
-### 1. Environment Variables
+## 🚀 **Deployment Steps**
 
-#### Frontend (.env.local)
-```env
-NEXT_PUBLIC_API_URL=https://your-api-gateway-url.amazonaws.com/prod
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=us-east-1
-```
+Follow these steps in order:
 
-#### Backend (.env)
-```env
-DATABASE_URL=postgresql://user:password@your-rds-endpoint:5432/atelier_db
-AWS_REGION=us-east-1
-AWS_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-AWS_COGNITO_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXX
-AWS_COGNITO_REGION=us-east-1
-JWT_SECRET_KEY=your-super-secret-key-min-32-chars
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-specific-password
-FROM_EMAIL=noreply@ashishpatelatelier.com
-ENVIRONMENT=production
-DEBUG=False
-CORS_ORIGINS=https://your-frontend-domain.vercel.app
-```
+---
 
-## 🔐 Step 1: AWS Cognito Setup
+## **Step 1: Setup AWS Cognito (Authentication)**
 
-### Create User Pool
+### 1.1 Create User Pool
 ```bash
-# Create user pool
 aws cognito-idp create-user-pool \
   --pool-name atelier-users-prod \
   --policies '{
@@ -79,26 +65,27 @@ aws cognito-idp create-user-pool \
   }' \
   --auto-verified-attributes email \
   --username-attributes email \
-  --mfa-configuration OFF
+  --mfa-configuration OFF \
+  --region ap-south-1
 
-# Note the UserPoolId from output
+# ✅ SAVE THIS: Copy the UserPoolId from output (e.g., ap-south-1_XXXXXXXXX)
 ```
 
-### Create App Client
+### 1.2 Create App Client
 ```bash
-# Create app client
 aws cognito-idp create-user-pool-client \
   --user-pool-id YOUR_USER_POOL_ID \
   --client-name atelier-web-client \
   --no-generate-secret \
   --explicit-auth-flows ADMIN_NO_SRP_AUTH USER_PASSWORD_AUTH \
   --read-attributes email name \
-  --write-attributes email name
+  --write-attributes email name \
+  --region ap-south-1
 
-# Note the ClientId from output
+# ✅ SAVE THIS: Copy the ClientId from output
 ```
 
-### Create Admin User
+### 1.3 Create Admin User
 ```bash
 # Create admin user
 aws cognito-idp admin-create-user \
@@ -106,111 +93,121 @@ aws cognito-idp admin-create-user \
   --username admin@ashishpatelatelier.com \
   --user-attributes Name=email,Value=admin@ashishpatelatelier.com Name=name,Value="Admin User" \
   --temporary-password TempPass123! \
-  --message-action SUPPRESS
+  --message-action SUPPRESS \
+  --region ap-south-1
 
 # Set permanent password
 aws cognito-idp admin-set-user-password \
   --user-pool-id YOUR_USER_POOL_ID \
   --username admin@ashishpatelatelier.com \
   --password YourSecurePassword123! \
-  --permanent
+  --permanent \
+  --region ap-south-1
 ```
 
-## 🗄️ Step 2: Database Setup (AWS RDS)
+**✅ Checkpoint:** You now have:
+- User Pool ID
+- Client ID
+- Admin user credentials
 
-### Create RDS Instance
+---
+
+## **Step 2: Setup Database (AWS RDS PostgreSQL)**
+
+### 2.1 Create RDS Instance
+
 ```bash
-# Create subnet group
-aws rds create-db-subnet-group \
-  --db-subnet-group-name atelier-subnet-group \
-  --db-subnet-group-description "Subnet group for Atelier DB" \
-  --subnet-ids subnet-xxxxx subnet-yyyyy
-
-# Create security group
+# Create security group for RDS
 aws ec2 create-security-group \
   --group-name atelier-db-sg \
   --description "Security group for Atelier RDS" \
-  --vpc-id vpc-xxxxx
+  --vpc-id YOUR_VPC_ID \
+  --region ap-south-1
 
-# Add inbound rule for PostgreSQL
+# ✅ SAVE THIS: Note the security group ID
+
+# Allow PostgreSQL access (port 5432)
 aws ec2 authorize-security-group-ingress \
-  --group-id sg-xxxxx \
+  --group-id YOUR_SG_ID \
   --protocol tcp \
   --port 5432 \
-  --cidr 0.0.0.0/0  # Restrict this in production!
+  --cidr 0.0.0.0/0 \
+  --region ap-south-1
 
 # Create RDS instance
 aws rds create-db-instance \
-  --db-instance-identifier atelier-db-prod \
+  --db-instance-identifier atelierdb \
   --db-instance-class db.t3.micro \
   --engine postgres \
   --engine-version 13.7 \
-  --master-username atelieradmin \
-  --master-user-password YOUR_DB_PASSWORD \
+  --master-username atelierdb \
+  --master-user-password "atelierdb#1019" \
   --allocated-storage 20 \
   --storage-type gp2 \
-  --vpc-security-group-ids sg-xxxxx \
-  --db-subnet-group-name atelier-subnet-group \
+  --vpc-security-group-ids YOUR_SG_ID \
+  --publicly-accessible \
   --backup-retention-period 7 \
-  --no-publicly-accessible  # Set to true for easier access initially
+  --region ap-south-1
 
-# Wait for instance to be available (5-10 minutes)
-aws rds wait db-instance-available --db-instance-identifier atelier-db-prod
+# Wait for instance (5-10 minutes)
+aws rds wait db-instance-available \
+  --db-instance-identifier atelierdb \
+  --region ap-south-1
 
 # Get endpoint
 aws rds describe-db-instances \
-  --db-instance-identifier atelier-db-prod \
+  --db-instance-identifier atelierdb \
   --query 'DBInstances[0].Endpoint.Address' \
-  --output text
+  --output text \
+  --region ap-south-1
+
+# ✅ SAVE THIS: Your RDS endpoint (e.g., atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com)
 ```
 
-### Initialize Database
+### 2.2 Create Database and Run Migrations
+
 ```bash
-# Connect to database
-psql -h your-rds-endpoint.rds.amazonaws.com \
-     -U atelieradmin \
+# Connect to RDS
+psql -h atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com \
+     -U atelierdb \
      -d postgres
 
-# Create database
+# In psql, create database
 CREATE DATABASE atelier_db;
-\c atelier_db
-
-# Exit psql
 \q
 
-# Run migrations from your server or local machine
-cd APIS
+# On your server or local machine
+cd ~/atelier-onboarding/APIS
 
-# Activate virtual environment (if on server)
+# Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies (if not already installed)
+# Install dependencies
 pip install -r requirements.txt
 
-# Set database connection string
+# Set database URL
 export DATABASE_URL="postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db"
 
-# Run migrations to create tables
+# Create initial migration (if not exists)
+alembic revision --autogenerate -m "Initial tables"
+
+# Run migrations
 alembic upgrade head
+
+# Verify tables were created
+psql "$DATABASE_URL" -c "\dt"
 ```
 
-## ⚡ Step 3: Backend Deployment (AWS Lambda)
+**✅ Checkpoint:** Database is ready with tables: `teachers`, `registrations`, `notifications`
 
-### Option A: Manual Deployment
+---
+
+## **Step 3: Deploy Backend API (AWS Lambda)**
+
+### 3.1 Create IAM Role for Lambda
 
 ```bash
-cd APIS
-
-# Run the packaging script
-./package-lambda.sh
-
-# This script will:
-# - Clean up old deployment artifacts
-# - Install Python dependencies
-# - Copy application code
-# - Create lambda-deployment.zip
-
-# Create IAM role for Lambda
+# Create Lambda execution role
 aws iam create-role \
   --role-name atelier-lambda-role \
   --assume-role-policy-document '{
@@ -220,18 +217,41 @@ aws iam create-role \
       "Principal": {"Service": "lambda.amazonaws.com"},
       "Action": "sts:AssumeRole"
     }]
-  }'
+  }' \
+  --region ap-south-1
 
-# Attach policies
+# Attach basic execution policy
 aws iam attach-role-policy \
   --role-name atelier-lambda-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
+# Attach Cognito access policy
 aws iam attach-role-policy \
   --role-name atelier-lambda-role \
   --policy-arn arn:aws:iam::aws:policy/AmazonCognitoPowerUser
 
-# Create Lambda function (FIRST TIME ONLY)
+# Wait 10 seconds for IAM propagation
+sleep 10
+```
+
+### 3.2 Package Lambda Deployment
+
+```bash
+cd ~/atelier-onboarding/APIS
+
+# Pull latest code
+git pull origin main
+
+# Run packaging script
+./package-lambda.sh
+
+# Verify zip was created
+ls -lh lambda-deployment.zip
+```
+
+### 3.3 Create Lambda Function (First Time)
+
+```bash
 aws lambda create-function \
   --function-name atelier-api-prod \
   --runtime python3.9 \
@@ -242,116 +262,141 @@ aws lambda create-function \
   --memory-size 512 \
   --region ap-south-1 \
   --environment Variables="{
-    DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
+    DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
     AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
     AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
     AWS_COGNITO_REGION=ap-south-1,
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
     SMTP_USER=your-email@gmail.com,
-    SMTP_PASSWORD=YOUR_SMTP_PASSWORD,
+    SMTP_PASSWORD=your-gmail-app-password,
     FROM_EMAIL=noreply@ashishpatelatelier.com,
     ENVIRONMENT=production,
-    CORS_ORIGINS=https://your-frontend-domain.vercel.app
+    CORS_ORIGINS=https://your-vercel-domain.vercel.app
   }"
+```
 
-# OR Update existing Lambda function (SUBSEQUENT DEPLOYMENTS)
-# Update function code
+### 3.4 Update Lambda Function (Subsequent Deployments)
+
+```bash
+# Update code only
 aws lambda update-function-code \
   --function-name atelier-api-prod \
   --zip-file fileb://lambda-deployment.zip \
   --region ap-south-1
 
-# Update function configuration/environment variables
+# Update environment variables
 aws lambda update-function-configuration \
   --function-name atelier-api-prod \
   --timeout 30 \
   --memory-size 512 \
   --region ap-south-1 \
   --environment Variables="{
-    DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/atelier_db,
+    DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
     AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
     AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
     AWS_COGNITO_REGION=ap-south-1,
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
     SMTP_USER=your-email@gmail.com,
-    SMTP_PASSWORD=YOUR_SMTP_PASSWORD,
+    SMTP_PASSWORD=your-gmail-app-password,
     FROM_EMAIL=noreply@ashishpatelatelier.com,
     ENVIRONMENT=production,
-    CORS_ORIGINS=https://your-frontend-domain.vercel.app
+    CORS_ORIGINS=https://your-vercel-domain.vercel.app
   }"
 ```
 
-### Option B: Serverless Framework
+**✅ Checkpoint:** Lambda function is deployed
+
+---
+
+## **Step 4: Setup API Gateway**
+
+### 4.1 Create HTTP API
 
 ```bash
-cd APIS
-
-# Install Serverless Framework
-npm install -g serverless
-
-# Install plugins
-npm install --save-dev serverless-python-requirements
-
-# Deploy
-serverless deploy --stage prod
-```
-
-### Create API Gateway
-
-```bash
-# Create REST API
+# Create HTTP API with Lambda integration
 aws apigatewayv2 create-api \
   --name atelier-api-prod \
   --protocol-type HTTP \
-  --target arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:atelier-api-prod
+  --target arn:aws:lambda:ap-south-1:841493805509:function:atelier-api-prod \
+  --region ap-south-1
 
-# Note the API ID from output
+# ✅ SAVE THIS: Copy the ApiId from output
+```
 
-# Grant API Gateway permission to invoke Lambda
+### 4.2 Grant API Gateway Permission
+
+```bash
 aws lambda add-permission \
   --function-name atelier-api-prod \
   --statement-id apigateway-invoke \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
-  --source-arn "arn:aws:execute-api:us-east-1:YOUR_ACCOUNT_ID:YOUR_API_ID/*/*"
+  --source-arn "arn:aws:execute-api:ap-south-1:841493805509:YOUR_API_ID/*/*" \
+  --region ap-south-1
+```
 
-# Create route
-aws apigatewayv2 create-route \
-  --api-id YOUR_API_ID \
-  --route-key 'ANY /{proxy+}' \
-  --target integrations/YOUR_INTEGRATION_ID
+### 4.3 Create Stage and Get API URL
 
-# Deploy API
+```bash
+# Create production stage
 aws apigatewayv2 create-stage \
   --api-id YOUR_API_ID \
   --stage-name prod \
-  --auto-deploy
+  --auto-deploy \
+  --region ap-south-1
 
-# Get API endpoint
-echo "https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod"
+# Get your API URL
+echo "✅ Your API URL: https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod"
 ```
 
-## 🌐 Step 4: Frontend Deployment (Vercel)
-
-### Deploy via Vercel CLI
+### 4.4 Test API
 
 ```bash
-cd UI
+# Test health endpoint
+curl https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod/health
 
-# Install Vercel CLI
-npm install -g vercel
+# Expected: {"status":"healthy"}
+```
 
-# Login
+**✅ Checkpoint:** API is accessible via API Gateway URL
+
+---
+
+## **Step 5: Deploy Frontend (Vercel)**
+
+### 5.1 Configure Environment Variables in Vercel
+
+1. Go to https://vercel.com/dashboard
+2. Click **Add New** → **Project**
+3. Import your GitHub repository `mailamiton/atelier-onboarding`
+4. Set **Root Directory** to `UI`
+5. Add these **Environment Variables**:
+
+```
+NEXT_PUBLIC_API_URL = https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod
+NEXT_PUBLIC_COGNITO_USER_POOL_ID = YOUR_USER_POOL_ID
+NEXT_PUBLIC_COGNITO_CLIENT_ID = YOUR_CLIENT_ID
+NEXT_PUBLIC_COGNITO_REGION = ap-south-1
+```
+
+6. Click **Deploy**
+
+### 5.2 Alternative: Deploy via CLI
+
+```bash
+cd ~/atelier-onboarding/UI
+
+# Login to Vercel
 vercel login
 
 # Deploy
 vercel --prod
 
-# Set environment variables
+# Add environment variables
 vercel env add NEXT_PUBLIC_API_URL production
-# Enter: https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod
+# Enter: https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod
 
 vercel env add NEXT_PUBLIC_COGNITO_USER_POOL_ID production
 # Enter: YOUR_USER_POOL_ID
@@ -360,202 +405,147 @@ vercel env add NEXT_PUBLIC_COGNITO_CLIENT_ID production
 # Enter: YOUR_CLIENT_ID
 
 vercel env add NEXT_PUBLIC_COGNITO_REGION production
-# Enter: us-east-1
+# Enter: ap-south-1
 
-# Redeploy with env vars
+# Redeploy with environment variables
 vercel --prod
 ```
 
-### Deploy via GitHub Integration
-
-1. Push code to GitHub
-2. Import repository in Vercel dashboard
-3. Configure environment variables in Vercel project settings
-4. Deploy
-
-## ✅ Step 5: Post-Deployment Verification
-
-### Test Backend
-
-```bash
-# Health check
-curl https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod/health
-
-# Create test registration (public endpoint)
-curl -X POST https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod/api/registrations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "student_name": "Test Student",
-    "student_age": 12,
-    "grade": "7",
-    "parent_name": "Test Parent",
-    "email": "test@example.com",
-    "phone": "+1234567890"
-  }'
-```
-
-### Test Frontend
-
-1. Visit https://your-domain.vercel.app
-2. Test registration form
-3. Test admin login at /admin/login
-4. Verify email notifications
-
-### Monitor Logs
-
-```bash
-# Lambda logs
-aws logs tail /aws/lambda/atelier-api-prod --follow
-
-# RDS logs
-aws rds describe-db-log-files --db-instance-identifier atelier-db-prod
-```
-
-## 🔧 Step 6: Custom Domain (Optional)
-
-### Frontend Domain
-
-1. Go to Vercel project settings
-2. Add custom domain
-3. Update DNS records as instructed
-
-### Backend Domain
-
-```bash
-# Create custom domain in API Gateway
-aws apigatewayv2 create-domain-name \
-  --domain-name api.yourdomain.com \
-  --domain-name-configurations CertificateArn=arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/YOUR_CERT_ID
-
-# Create API mapping
-aws apigatewayv2 create-api-mapping \
-  --domain-name api.yourdomain.com \
-  --api-id YOUR_API_ID \
-  --stage prod
-
-# Update DNS with API Gateway endpoint
-```
-
-## 📊 Step 7: Monitoring & Logging
-
-### CloudWatch Alarms
-
-```bash
-# Create alarm for Lambda errors
-aws cloudwatch put-metric-alarm \
-  --alarm-name atelier-lambda-errors \
-  --alarm-description "Alert on Lambda function errors" \
-  --metric-name Errors \
-  --namespace AWS/Lambda \
-  --statistic Sum \
-  --period 300 \
-  --threshold 5 \
-  --comparison-operator GreaterThanThreshold \
-  --evaluation-periods 1 \
-  --dimensions Name=FunctionName,Value=atelier-api-prod
-```
-
-## 🔐 Step 8: Security Hardening
-
-### Enable HTTPS Only
-- Vercel: Automatic
-- API Gateway: Enabled by default
-
-### Restrict CORS Origins
-Update Lambda environment:
-```env
-CORS_ORIGINS=https://your-actual-domain.vercel.app
-```
-
-### Database Security
-```bash
-# Restrict RDS security group to Lambda only
-aws ec2 authorize-security-group-ingress \
-  --group-id YOUR_DB_SG_ID \
-  --protocol tcp \
-  --port 5432 \
-  --source-group YOUR_LAMBDA_SG_ID
-```
-
-### Enable Rate Limiting
-Configure in API Gateway throttling settings
-
-## 🔄 Step 9: CI/CD Setup (Optional)
-
-### GitHub Actions for Frontend
-
-Create `.github/workflows/deploy.yml`:
-```yaml
-name: Deploy to Vercel
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
-```
-
-### GitHub Actions for Backend
-
-```yaml
-name: Deploy Lambda
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: cd APIS && serverless deploy --stage prod
-```
-
-## 📝 Maintenance Tasks
-
-### Database Backups
-```bash
-# Manual backup
-aws rds create-db-snapshot \
-  --db-instance-identifier atelier-db-prod \
-  --db-snapshot-identifier atelier-backup-$(date +%Y%m%d)
-```
-
-### Update Lambda Code
-```bash
-cd APIS
-# Make changes, then:
-zip -r lambda-deployment.zip .
-aws lambda update-function-code \
-  --function-name atelier-api-prod \
-  --zip-file fileb://lambda-deployment.zip
-```
-
-### View Logs
-```bash
-# Lambda logs
-aws logs tail /aws/lambda/atelier-api-prod --follow
-
-# Vercel logs
-vercel logs your-deployment-url
-```
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-1. **CORS Errors**: Check CORS_ORIGINS environment variable
-2. **Database Connection**: Verify RDS security group and DATABASE_URL
-3. **Authentication Fails**: Verify Cognito configuration
-4. **Email Not Sending**: Check SMTP credentials and port
-
-### Support Resources
-- AWS Documentation: https://docs.aws.amazon.com
-- Vercel Documentation: https://vercel.com/docs
-- FastAPI Documentation: https://fastapi.tiangolo.com
+**✅ Checkpoint:** Frontend is live on Vercel
 
 ---
 
-**Congratulations!** 🎉 Your application is now deployed and ready for production use.
+## **Step 6: Update CORS Origins**
+
+Update Lambda environment to allow your Vercel domain:
+
+```bash
+# Get your Vercel URL (e.g., https://atelier-onboarding-git-main-mailamiton.vercel.app)
+
+# Update Lambda CORS
+aws lambda update-function-configuration \
+  --function-name atelier-api-prod \
+  --environment Variables="{
+    DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
+    AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
+    AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
+    AWS_COGNITO_REGION=ap-south-1,
+    SMTP_HOST=smtp.gmail.com,
+    SMTP_PORT=587,
+    SMTP_USER=your-email@gmail.com,
+    SMTP_PASSWORD=your-gmail-app-password,
+    FROM_EMAIL=noreply@ashishpatelatelier.com,
+    ENVIRONMENT=production,
+    CORS_ORIGINS=https://your-actual-vercel-url.vercel.app
+  }" \
+  --region ap-south-1
+```
+
+---
+
+## **Step 7: Test Complete System**
+
+### 7.1 Test Frontend
+
+1. Visit your Vercel URL
+2. Test registration form at `/register`
+3. Submit a test registration
+4. Check email for confirmation
+
+### 7.2 Test Admin Dashboard
+
+1. Go to `/admin/login`
+2. Login with admin credentials:
+   - Email: `admin@ashishpatelatelier.com`
+   - Password: `YourSecurePassword123!`
+3. View dashboard and registrations
+
+### 7.3 Test API Endpoints
+
+```bash
+# List registrations (requires authentication)
+curl https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod/api/registrations
+
+# Health check
+curl https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod/health
+```
+
+---
+
+## **Step 8: Monitor & Troubleshoot**
+
+### View Lambda Logs
+
+```bash
+# Stream logs in real-time
+aws logs tail /aws/lambda/atelier-api-prod --follow --region ap-south-1
+
+# Get recent errors
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/atelier-api-prod \
+  --filter-pattern "ERROR" \
+  --region ap-south-1
+```
+
+### View Vercel Logs
+
+```bash
+vercel logs YOUR_DEPLOYMENT_URL
+```
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| CORS errors | Update `CORS_ORIGINS` in Lambda env vars |
+| Auth fails | Verify Cognito User Pool ID and Client ID |
+| Database errors | Check RDS security group allows Lambda access |
+| Email not sending | Verify Gmail App Password is correct |
+
+---
+
+## **📝 Deployment Summary**
+
+Your deployment includes:
+
+- ✅ **Authentication:** AWS Cognito User Pool
+- ✅ **Database:** AWS RDS PostgreSQL (atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com)
+- ✅ **Backend API:** AWS Lambda + API Gateway
+- ✅ **Frontend:** Vercel (Next.js)
+- ✅ **Email:** Gmail SMTP
+
+### Important URLs
+
+- **Frontend:** https://your-project.vercel.app
+- **API:** https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod
+- **Admin Login:** https://your-project.vercel.app/admin/login
+
+---
+
+## **🔄 Future Updates**
+
+### Update Backend Code
+
+```bash
+cd ~/atelier-onboarding/APIS
+git pull origin main
+./package-lambda.sh
+aws lambda update-function-code \
+  --function-name atelier-api-prod \
+  --zip-file fileb://lambda-deployment.zip \
+  --region ap-south-1
+```
+
+### Update Frontend Code
+
+```bash
+# Vercel auto-deploys on git push
+git push origin main
+
+# Or manual deploy
+cd UI && vercel --prod
+```
+
+---
+
+**🎉 Congratulations!** Your application is now fully deployed and ready for production use.
