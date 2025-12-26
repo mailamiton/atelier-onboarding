@@ -74,7 +74,7 @@ aws cognito-idp create-user-pool \
 ### 1.2 Create App Client
 ```bash
 aws cognito-idp create-user-pool-client \
-  --user-pool-id YOUR_USER_POOL_ID \
+  --user-pool-id ap-south-1_gzMEp3vBW \
   --client-name atelier-web-client \
   --no-generate-secret \
   --explicit-auth-flows ADMIN_NO_SRP_AUTH USER_PASSWORD_AUTH \
@@ -87,28 +87,31 @@ aws cognito-idp create-user-pool-client \
 
 ### 1.3 Create Admin User
 ```bash
-# Create admin user
+# Create admin user with verified email
 aws cognito-idp admin-create-user \
-  --user-pool-id YOUR_USER_POOL_ID \
-  --username admin@ashishpatelatelier.com \
-  --user-attributes Name=email,Value=admin@ashishpatelatelier.com Name=name,Value="Admin User" \
+  --user-pool-id ap-south-1_gzMEp3vBW \
+  --username rentbuyart@gmail.com \
+  --user-attributes \
+    Name=email,Value=rentbuyart@gmail.com \
+    Name=email_verified,Value=true \
+    Name=name,Value="Admin User" \
   --temporary-password TempPass123! \
   --message-action SUPPRESS \
   --region ap-south-1
 
 # Set permanent password
 aws cognito-idp admin-set-user-password \
-  --user-pool-id YOUR_USER_POOL_ID \
-  --username admin@ashishpatelatelier.com \
+  --user-pool-id ap-south-1_gzMEp3vBW \
+  --username rentbuyart@gmail.com \
   --password YourSecurePassword123! \
   --permanent \
   --region ap-south-1
 ```
 
 **✅ Checkpoint:** You now have:
-- User Pool ID
-- Client ID
-- Admin user credentials
+- User Pool ID - ap-south-1_gzMEp3vBW
+- Client ID - 5nqa0ngnbhk791p8psg7vk6lsr
+- Admin user credentials - rentbuyart@gmail.com/Abhinav@1019
 
 ---
 
@@ -263,14 +266,14 @@ aws lambda create-function \
   --region ap-south-1 \
   --environment Variables="{
     DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
-    AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
-    AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
+    AWS_COGNITO_USER_POOL_ID=ap-south-1_gzMEp3vBW,
+    AWS_COGNITO_CLIENT_ID=5nqa0ngnbhk791p8psg7vk6lsr,
     AWS_COGNITO_REGION=ap-south-1,
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
-    SMTP_USER=your-email@gmail.com,
-    SMTP_PASSWORD=your-gmail-app-password,
-    FROM_EMAIL=noreply@ashishpatelatelier.com,
+    SMTP_USER=rentbuyart@gmail.com,
+    SMTP_PASSWORD=YOUR_GMAIL_APP_PASSWORD,
+    FROM_EMAIL=rentbuyart@gmail.com,
     ENVIRONMENT=production,
     CORS_ORIGINS=https://your-vercel-domain.vercel.app
   }"
@@ -427,14 +430,14 @@ aws lambda update-function-configuration \
   --function-name atelier-api-prod \
   --environment Variables="{
     DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
-    AWS_COGNITO_USER_POOL_ID=YOUR_USER_POOL_ID,
-    AWS_COGNITO_CLIENT_ID=YOUR_CLIENT_ID,
+    AWS_COGNITO_USER_POOL_ID=ap-south-1_gzMEp3vBW,
+    AWS_COGNITO_CLIENT_ID=5nqa0ngnbhk791p8psg7vk6lsr,
     AWS_COGNITO_REGION=ap-south-1,
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
-    SMTP_USER=your-email@gmail.com,
-    SMTP_PASSWORD=your-gmail-app-password,
-    FROM_EMAIL=noreply@ashishpatelatelier.com,
+    SMTP_USER=rentbuyart@gmail.com,
+    SMTP_PASSWORD=YOUR_GMAIL_APP_PASSWORD,
+    FROM_EMAIL=rentbuyart@gmail.com,
     ENVIRONMENT=production,
     CORS_ORIGINS=https://your-actual-vercel-url.vercel.app
   }" \

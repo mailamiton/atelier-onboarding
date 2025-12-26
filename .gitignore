@@ -1,9 +1,9 @@
 # Root level gitignore for the entire project
 
 # Environment files (IMPORTANT: Never commit credentials!)
-.env
-.env.local
-.env.*.local
+# .env
+# .env.local
+# .env.*.local
 *.env
 
 # IDE and Editor files
@@ -39,3 +39,6 @@ yarn-error.log*
 lambda_deployment.zip
 deployment/
 package/
+
+# DEPLOYMENT.md
+DEPLOYMENT.md
