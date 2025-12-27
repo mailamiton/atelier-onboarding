@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Filter, UserPlus, Send, Loader2 } from 'lucide-react'
+import { Search, Filter, UserPlus, Send, Loader2, Copy, ExternalLink, CheckCircle, Edit } from 'lucide-react'
 import { toast } from 'sonner'
 import AdminLayout from '@/components/AdminLayout'
 import { api } from '@/lib/api'
@@ -17,6 +17,7 @@ interface Registration {
   status: 'pending' | 'teacher_assigned' | 'link_sent' | 'completed'
   created_at: string
   teacher_name?: string
+  demo_link?: string
 }
 
 export default function RegistrationsPage() {
@@ -74,6 +75,21 @@ export default function RegistrationsPage() {
       loadRegistrations()
     } catch (error) {
       toast.error('Failed to send demo link')
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Link copied to clipboard!')
+  }
+
+  const markAsCompleted = async (registrationId: string) => {
+    try {
+      await api.updateRegistration(registrationId, { status: 'completed' })
+      toast.success('Demo marked as completed!')
+      loadRegistrations()
+    } catch (error) {
+      toast.error('Failed to update status')
     }
   }
 
@@ -204,6 +220,60 @@ export default function RegistrationsPage() {
                               <Send className="w-3 h-3 mr-1" />
                               Send Link
                             </button>
+                          )}
+                          {registration.status === 'link_sent' && registration.demo_link && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => copyToClipboard(registration.demo_link!)}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                                title="Copy demo link"
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                Copy
+                              </button>
+                              <a
+                                href={registration.demo_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                                title="Open demo link"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                              <button
+                                onClick={() => markAsCompleted(registration.id)}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+                                title="Mark as completed"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Complete
+                              </button>
+                            </div>
+                          )}
+                          {registration.status === 'completed' && registration.demo_link && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => copyToClipboard(registration.demo_link!)}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                                title="Copy demo link"
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                Copy
+                              </button>
+                              <a
+                                href={registration.demo_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                                title="Open demo link"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-700">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Completed
+                              </span>
+                            </div>
                           )}
                         </td>
                       </tr>

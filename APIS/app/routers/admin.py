@@ -23,8 +23,9 @@ async def get_stats(
         Registration.status == RegistrationStatus.PENDING
     ).scalar()
     
+    # Count registrations that have a teacher assigned (any status after assignment)
     teachers_assigned = db.query(func.count(Registration.id)).filter(
-        Registration.status == RegistrationStatus.TEACHER_ASSIGNED
+        Registration.teacher_id.isnot(None)
     ).scalar()
     
     completed_demos = db.query(func.count(Registration.id)).filter(

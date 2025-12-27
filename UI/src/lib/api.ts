@@ -62,6 +62,18 @@ class ApiClient {
     return this.client.get('/api/teachers')
   }
 
+  async createTeacher(data: TeacherFormData) {
+    return this.client.post('/api/teachers', data)
+  }
+
+  async updateTeacher(id: string, data: Partial<TeacherFormData>) {
+    return this.client.put(`/api/teachers/${id}`, data)
+  }
+
+  async deleteTeacher(id: string) {
+    return this.client.delete(`/api/teachers/${id}`)
+  }
+
   async sendDemoLink(registrationId: string) {
     return this.client.post(`/api/registrations/${registrationId}/send-link`)
   }
@@ -82,6 +94,7 @@ export interface StudentRegistrationData {
   interests?: string[]
   experience_level?: 'beginner' | 'intermediate' | 'advanced'
   additional_notes?: string
+  status?: 'pending' | 'teacher_assigned' | 'link_sent' | 'completed'
 }
 
 export interface RegistrationFilters {
@@ -89,6 +102,16 @@ export interface RegistrationFilters {
   search?: string
   page?: number
   limit?: number
+}
+
+export interface TeacherFormData {
+  name: string
+  email: string
+  phone: string
+  specialization: string
+  bio?: string
+  experience_years: number
+  availability?: string
 }
 
 export const api = new ApiClient()

@@ -85,7 +85,19 @@ aws cognito-idp create-user-pool-client \
 # ✅ SAVE THIS: Copy the ClientId from output
 ```
 
-### 1.3 Create Admin User
+### 1.3 Create Admins Group
+```bash
+# Create Admins group for administrative access
+aws cognito-idp create-group \
+  --group-name Admins \
+  --user-pool-id ap-south-1_gzMEp3vBW \
+  --description "Administrator group with full access" \
+  --region ap-south-1
+
+# ✅ SAVE THIS: Admins group created
+```
+
+### 1.4 Create Admin User and Add to Group
 ```bash
 # Create admin user with verified email
 aws cognito-idp admin-create-user \
@@ -106,12 +118,23 @@ aws cognito-idp admin-set-user-password \
   --password YourSecurePassword123! \
   --permanent \
   --region ap-south-1
+
+# Add user to Admins group (REQUIRED for admin access)
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id ap-south-1_gzMEp3vBW \
+  --username rentbuyart@gmail.com \
+  --group-name Admins \
+  --region ap-south-1
+
+# ✅ IMPORTANT: Users MUST be in the Admins group to access admin endpoints
 ```
 
 **✅ Checkpoint:** You now have:
 - User Pool ID - ap-south-1_gzMEp3vBW
 - Client ID - 5nqa0ngnbhk791p8psg7vk6lsr
+- Admins group created
 - Admin user credentials - rentbuyart@gmail.com/Abhinav@1019
+- User added to Admins group
 
 ---
 
@@ -228,6 +251,11 @@ aws iam attach-role-policy \
   --role-name atelier-lambda-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
+# Attach VPC access policy (required for RDS access)
+aws iam attach-role-policy \
+  --role-name atelier-lambda-role \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
 # Attach Cognito access policy
 aws iam attach-role-policy \
   --role-name atelier-lambda-role \
@@ -272,10 +300,11 @@ aws lambda create-function \
     SMTP_HOST=smtp.gmail.com,
     SMTP_PORT=587,
     SMTP_USER=rentbuyart@gmail.com,
-    SMTP_PASSWORD=YOUR_GMAIL_APP_PASSWORD,
+    SMTP_PASSWORD=Abhinav@,
     FROM_EMAIL=rentbuyart@gmail.com,
     ENVIRONMENT=production,
-    CORS_ORIGINS=https://your-vercel-domain.vercel.app
+    CORS_ORIGINS=https://on-board.ashishpatelatelier.com,http://localhost:3000
+    
   }"
 ```
 
@@ -305,7 +334,8 @@ aws lambda update-function-configuration \
     SMTP_PASSWORD=your-gmail-app-password,
     FROM_EMAIL=noreply@ashishpatelatelier.com,
     ENVIRONMENT=production,
-    CORS_ORIGINS=https://your-vercel-domain.vercel.app
+    CORS_ORIGINS=https://on-board.ashishpatelatelier.com,http://localhost:3000
+    
   }"
 ```
 
@@ -327,6 +357,7 @@ aws apigatewayv2 create-api \
 
 # ✅ SAVE THIS: Copy the ApiId from output
 ```
+https://ettudadafj.execute-api.ap-south-1.amazonaws.com
 
 ### 4.2 Grant API Gateway Permission
 
@@ -336,7 +367,7 @@ aws lambda add-permission \
   --statement-id apigateway-invoke \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
-  --source-arn "arn:aws:execute-api:ap-south-1:841493805509:YOUR_API_ID/*/*" \
+  --source-arn "arn:aws:execute-api:ap-south-1:841493805509:ettudadafj/*/*" \
   --region ap-south-1
 ```
 
@@ -345,20 +376,20 @@ aws lambda add-permission \
 ```bash
 # Create production stage
 aws apigatewayv2 create-stage \
-  --api-id YOUR_API_ID \
+  --api-id ettudadafj \
   --stage-name prod \
   --auto-deploy \
   --region ap-south-1
 
 # Get your API URL
-echo "✅ Your API URL: https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod"
+echo "✅ Your API URL: https://ettudadafj.execute-api.ap-south-1.amazonaws.com/prod"
 ```
 
 ### 4.4 Test API
 
 ```bash
 # Test health endpoint
-curl https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod/health
+curl https://ettudadafj.execute-api.ap-south-1.amazonaws.com
 
 # Expected: {"status":"healthy"}
 ```
@@ -550,5 +581,8 @@ cd UI && vercel --prod
 ```
 
 ---
+--Local DB Access--
+ssh -i bastion.pem -L 5433:atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432 ubuntu@13.203.218.48 -N
+
 
 **🎉 Congratulations!** Your application is now fully deployed and ready for production use.

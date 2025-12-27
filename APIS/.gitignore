@@ -157,3 +157,6 @@ deployment/
 # Local development
 *.sqlite
 *.db
+
+# Keys and Certificates 
+bastion.pem

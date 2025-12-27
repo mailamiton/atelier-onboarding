@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Users, UserCheck, Clock, CheckCircle } from 'lucide-react'
 import AdminLayout from '@/components/AdminLayout'
 import { api } from '@/lib/api'
+import { auth } from '@/lib/auth'
 
 interface Stats {
   total_registrations: number
@@ -20,10 +21,26 @@ export default function DashboardPage() {
     completed_demos: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [userName, setUserName] = useState<string>('')
+  const [currentTime, setCurrentTime] = useState<string>('')
 
   useEffect(() => {
     loadStats()
+    loadUserInfo()
+    setCurrentTime(new Date().toLocaleString())
   }, [])
+
+  const loadUserInfo = async () => {
+    try {
+      const session = await auth.getSession()
+      const idToken = session.getIdToken()
+      const payload = idToken.payload
+      setUserName(payload.name || payload.email || 'Admin')
+    } catch (error) {
+      console.error('Failed to load user info:', error)
+      setUserName('Admin')
+    }
+  }
 
   const loadStats = async () => {
     try {
@@ -69,7 +86,7 @@ export default function DashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-heading font-bold text-gray-900">Dashboard</h1>
           <p className="mt-2 text-gray-600">
-            Welcome back! Here's an overview of your registrations.
+            Welcome back, {userName || 'Admin'}! Here's an overview of your registrations.
           </p>
         </div>
 
@@ -155,7 +172,7 @@ export default function DashboardPage() {
               </div>
               <div className="border-t border-primary-500 pt-4">
                 <p className="text-sm opacity-90">
-                  Last updated: {new Date().toLocaleString()}
+                  Last updated: {currentTime || 'Loading...'}
                 </p>
               </div>
             </div>

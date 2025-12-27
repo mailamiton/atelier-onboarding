@@ -10,7 +10,8 @@ from ..schemas import (
     RegistrationCreate,
     RegistrationResponse,
     RegistrationUpdate,
-    MessageResponse
+    MessageResponse,
+    AssignTeacherRequest
 )
 from ..services.email_service import email_service
 
@@ -167,7 +168,7 @@ async def update_registration(
 @router.post("/{registration_id}/assign", response_model=MessageResponse)
 async def assign_teacher(
     registration_id: str,
-    teacher_id: str,
+    request: AssignTeacherRequest,
     db: Session = Depends(get_db)
 ):
     """Assign a teacher to a registration"""
@@ -176,11 +177,11 @@ async def assign_teacher(
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
     
-    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    teacher = db.query(Teacher).filter(Teacher.id == request.teacher_id).first()
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
     
-    registration.teacher_id = teacher_id
+    registration.teacher_id = request.teacher_id
     registration.status = RegistrationStatus.TEACHER_ASSIGNED
     
     db.commit()

@@ -134,7 +134,12 @@ def require_admin(current_user: dict = Depends(get_current_user)):
     """
     Dependency to require admin role.
     Checks if user is in 'Admins' group OR has 'admin' role.
+    In development mode, all authenticated users are treated as admins.
     """
+    # Development mode: allow all authenticated users
+    if settings.ENVIRONMENT == "development" and settings.DEBUG:
+        return current_user
+    
     # Check Cognito Groups (recommended approach)
     if "Admins" in current_user.get("groups", []):
         return current_user
