@@ -42,9 +42,254 @@ sudo apt-get install postgresql-client
 
 ---
 
-## 🚀 **Deployment Steps**
+## 💻 **Local Development Setup**
 
-Follow these steps in order:
+Complete guide for running the application locally for development and testing.
+
+### Prerequisites for Local Development
+- Node.js v18+ and npm v9+
+- Python 3.9+ with pip
+- PostgreSQL client (psql)
+- SSH access to bastion host
+- `.pem` key file for SSH tunnel
+
+### Step 1: Clone Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/mailamiton/atelier-onboarding.git
+cd atelier-onboarding
+```
+
+### Step 2: Setup SSH Tunnel to RDS Database
+
+The database is hosted on AWS RDS and requires an SSH tunnel through the bastion host.
+
+```bash
+# Navigate to project root
+cd /home/amit/Document/Non-Official/atelier/atelier-onboarding
+
+# Start SSH tunnel (keep this terminal open)
+ssh -i bastion.pem -L 5433:atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432 ubuntu@13.203.218.48 -N
+
+# This command forwards:
+# - Local port 5433 → RDS database port 5432
+# - Through bastion host at 13.203.218.48
+```
+
+**Important:** Keep this terminal window open while developing. The tunnel must stay active for the backend to connect to the database.
+
+### Step 3: Setup Backend API
+
+Open a new terminal window:
+
+```bash
+# Navigate to backend directory
+cd /home/amit/Document/Non-Official/atelier/atelier-onboarding/atelier-onboarding-api
+
+# Create Python virtual environment (first time only)
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install dependencies (first time only)
+pip install -r requirements.txt
+
+# Create .env.tunnel file (if not exists)
+cat > .env.tunnel << 'EOF'
+# Database Configuration (via SSH tunnel)
+DATABASE_URL=postgresql://atelierdb:atelierdb#1019@localhost:5433/atelier_db
+
+# AWS Cognito Configuration
+AWS_COGNITO_USER_POOL_ID=ap-south-1_gzMEp3vBW
+AWS_COGNITO_CLIENT_ID=5nqa0ngnbhk791p8psg7vk6lsr
+AWS_COGNITO_REGION=ap-south-1
+
+# Email Configuration (Gmail SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=noreply@ashishpatelatelier.com
+
+# Application Configuration
+ENVIRONMENT=development
+DEBUG=True
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+EOF
+
+# Load environment variables
+export $(grep -v '^#' .env.tunnel | xargs)
+
+# Run database migrations (first time only)
+alembic upgrade head
+
+# Start the backend server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Server will start at: http://localhost:8000
+# API docs available at: http://localhost:8000/docs
+```
+
+### Step 4: Setup Frontend UI
+
+Open a new terminal window:
+
+```bash
+# Navigate to frontend directory
+cd /home/amit/Document/Non-Official/atelier/atelier-onboarding/UI
+
+# Install dependencies (first time only)
+npm install
+
+# Create .env file (if not exists)
+cat > .env << 'EOF'
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# AWS Cognito Configuration
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=ap-south-1_gzMEp3vBW
+NEXT_PUBLIC_COGNITO_CLIENT_ID=5nqa0ngnbhk791p8psg7vk6lsr
+NEXT_PUBLIC_COGNITO_REGION=ap-south-1
+EOF
+
+# Start the development server
+npm run dev
+
+# Frontend will start at: http://localhost:3000
+```
+
+### Step 5: Access the Application
+
+Your local application is now running:
+
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8000
+- **API Documentation:** http://localhost:8000/docs
+- **Admin Login:** http://localhost:3000/admin/login
+- **Registration Page:** http://localhost:3000/register
+
+### Admin Credentials
+
+```
+Email: rentbuyart@gmail.com
+Password: Abhinav@1019
+```
+
+### Quick Start Script (All-in-One)
+
+Create a script to start everything:
+
+```bash
+#!/bin/bash
+# save as: start-local.sh
+
+# Start SSH tunnel in background
+ssh -i bastion.pem -L 5433:atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432 ubuntu@13.203.218.48 -N &
+SSH_PID=$!
+
+# Wait for tunnel
+sleep 2
+
+# Start backend
+cd atelier-onboarding-api
+source .venv/bin/activate
+export $(grep -v '^#' .env.tunnel | xargs)
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+BACKEND_PID=$!
+
+# Start frontend
+cd ../UI
+npm run dev &
+FRONTEND_PID=$!
+
+echo "✅ All services started!"
+echo "- SSH Tunnel PID: $SSH_PID"
+echo "- Backend PID: $BACKEND_PID"
+echo "- Frontend PID: $FRONTEND_PID"
+echo ""
+echo "Press Ctrl+C to stop all services"
+
+# Wait for Ctrl+C
+trap "kill $SSH_PID $BACKEND_PID $FRONTEND_PID" EXIT
+wait
+```
+
+### Stopping Services
+
+```bash
+# Kill all processes
+pkill -f "ssh.*5433"
+pkill -f "uvicorn"
+pkill -f "next dev"
+
+# Or if using the script above, just press Ctrl+C
+```
+
+### Common Local Development Commands
+
+```bash
+# Check if SSH tunnel is running
+ps aux | grep "ssh.*5433"
+
+# Check if backend is running
+ps aux | grep uvicorn
+
+# Check if frontend is running
+ps aux | grep "next dev"
+
+# Test database connection
+psql postgresql://atelierdb:atelierdb#1019@localhost:5433/atelier_db -c "SELECT 1"
+
+# Test backend API
+curl http://localhost:8000/health
+
+# View backend logs (if running in background)
+tail -f atelier-onboarding-api/logs/*.log
+
+# Restart backend only
+cd atelier-onboarding-api
+source .venv/bin/activate
+export $(grep -v '^#' .env.tunnel | xargs)
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Database Access (Local)
+
+```bash
+# Connect via SSH tunnel
+psql postgresql://atelierdb:atelierdb#1019@localhost:5433/atelier_db
+
+# List tables
+\dt
+
+# View registrations
+SELECT * FROM registrations;
+
+# View teachers
+SELECT * FROM teachers;
+
+# Exit
+\q
+```
+
+### Troubleshooting Local Setup
+
+| Issue | Solution |
+|-------|----------|
+| Port 5433 already in use | Kill existing tunnel: `pkill -f "ssh.*5433"` |
+| Port 8000 already in use | Kill backend: `pkill -f uvicorn` |
+| Port 3000 already in use | Kill frontend: `pkill -f "next dev"` |
+| Database connection fails | Check SSH tunnel is running |
+| Backend 403 errors | Ensure `ENVIRONMENT=development` in `.env.tunnel` |
+| Frontend can't reach backend | Verify `NEXT_PUBLIC_API_URL=http://localhost:8000` |
+
+---
+
+## 🚀 **Production Deployment Steps**
+
+Follow these steps in order for production deployment:
 
 ---
 
@@ -203,7 +448,7 @@ CREATE DATABASE atelier_db;
 \q
 
 # On your server or local machine
-cd ~/atelier-onboarding/APIS
+cd ~/atelier-onboarding/atelier-onboarding-api
 
 # Activate virtual environment
 source .venv/bin/activate
@@ -235,7 +480,7 @@ psql "$DATABASE_URL" -c "\dt"
 ```bash
 # Create Lambda execution role
 aws iam create-role \
-  --role-name atelier-lambda-role \
+  --role-name atelier-onboarding-api-role \
   --assume-role-policy-document '{
     "Version": "2012-10-17",
     "Statement": [{
@@ -248,17 +493,17 @@ aws iam create-role \
 
 # Attach basic execution policy
 aws iam attach-role-policy \
-  --role-name atelier-lambda-role \
+  --role-name atelier-onboarding-api-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
 # Attach VPC access policy (required for RDS access)
 aws iam attach-role-policy \
-  --role-name atelier-lambda-role \
+  --role-name atelier-onboarding-api-role \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
 # Attach Cognito access policy
 aws iam attach-role-policy \
-  --role-name atelier-lambda-role \
+  --role-name atelier-onboarding-api-role \
   --policy-arn arn:aws:iam::aws:policy/AmazonCognitoPowerUser
 
 # Wait 10 seconds for IAM propagation
@@ -268,7 +513,7 @@ sleep 10
 ### 3.2 Package Lambda Deployment
 
 ```bash
-cd ~/atelier-onboarding/APIS
+cd ~/atelier-onboarding/atelier-onboarding-api
 
 # Pull latest code
 git pull origin main
@@ -284,9 +529,9 @@ ls -lh lambda-deployment.zip
 
 ```bash
 aws lambda create-function \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --runtime python3.9 \
-  --role arn:aws:iam::841493805509:role/atelier-lambda-role \
+  --role arn:aws:iam::841493805509:role/atelier-onboarding-api-role \
   --handler lambda_function.lambda_handler \
   --zip-file fileb://lambda-deployment.zip \
   --timeout 30 \
@@ -313,13 +558,13 @@ aws lambda create-function \
 ```bash
 # Update code only
 aws lambda update-function-code \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --zip-file fileb://lambda-deployment.zip \
   --region ap-south-1
 
 # Update environment variables
 aws lambda update-function-configuration \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --timeout 30 \
   --memory-size 512 \
   --region ap-south-1 \
@@ -350,9 +595,9 @@ aws lambda update-function-configuration \
 ```bash
 # Create HTTP API with Lambda integration
 aws apigatewayv2 create-api \
-  --name atelier-api-prod \
+  --name atelier-onboarding \
   --protocol-type HTTP \
-  --target arn:aws:lambda:ap-south-1:841493805509:function:atelier-api-prod \
+  --target arn:aws:lambda:ap-south-1:841493805509:function:atelier-onboarding \
   --region ap-south-1
 
 # ✅ SAVE THIS: Copy the ApiId from output
@@ -363,7 +608,7 @@ https://ettudadafj.execute-api.ap-south-1.amazonaws.com
 
 ```bash
 aws lambda add-permission \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --statement-id apigateway-invoke \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
@@ -458,7 +703,7 @@ Update Lambda environment to allow your Vercel domain:
 
 # Update Lambda CORS
 aws lambda update-function-configuration \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --environment Variables="{
     DATABASE_URL=postgresql://atelierdb:atelierdb#1019@atelierdb.crceg4sam0zb.ap-south-1.rds.amazonaws.com:5432/atelier_db,
     AWS_COGNITO_USER_POOL_ID=ap-south-1_gzMEp3vBW,
@@ -512,11 +757,11 @@ curl https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/prod/health
 
 ```bash
 # Stream logs in real-time
-aws logs tail /aws/lambda/atelier-api-prod --follow --region ap-south-1
+aws logs tail /aws/lambda/atelier-onboarding --follow --region ap-south-1
 
 # Get recent errors
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/atelier-api-prod \
+  --log-group-name /aws/lambda/atelier-onboarding \
   --filter-pattern "ERROR" \
   --region ap-south-1
 ```
@@ -561,11 +806,11 @@ Your deployment includes:
 ### Update Backend Code
 
 ```bash
-cd ~/atelier-onboarding/APIS
+cd ~/atelier-onboarding/atelier-onboarding-api
 git pull origin main
 ./package-lambda.sh
 aws lambda update-function-code \
-  --function-name atelier-api-prod \
+  --function-name atelier-onboarding \
   --zip-file fileb://lambda-deployment.zip \
   --region ap-south-1
 ```

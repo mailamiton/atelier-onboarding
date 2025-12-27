@@ -49,7 +49,7 @@ atelier-onboarding/
 │   ├── package.json
 │   └── next.config.js
 │
-└── APIS/                        # FastAPI Backend
+└── atelier-onboarding-api/      # FastAPI Backend
     ├── app/
     │   ├── main.py             # FastAPI app
     │   ├── models.py           # Database models
@@ -152,7 +152,7 @@ The frontend will be available at `http://localhost:3000`
 ### Backend Setup
 
 ```bash
-cd APIS
+cd atelier-onboarding-api
 
 # Create virtual environment
 python -m venv venv
@@ -228,7 +228,7 @@ API documentation: `http://localhost:8000/api/docs`
 
 1. **Package the application**
    ```bash
-   cd APIS
+   cd atelier-onboarding-api
    pip install -r requirements.txt -t ./package
    cp -r app package/
    cp lambda_function.py package/
@@ -333,7 +333,7 @@ npm run test
 
 ### Backend
 ```bash
-cd APIS
+cd atelier-onboarding-api
 pytest
 ```
 

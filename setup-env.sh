@@ -18,7 +18,7 @@ EOF
 echo "✅ Created UI/.env.local"
 
 # Backend environment
-cat > APIS/.env << 'EOF'
+cat > atelier-onboarding-api/.env << 'EOF'
 # Database Configuration
 DATABASE_URL=postgresql://postgres:password@localhost:5432/atelier_db
 
@@ -42,7 +42,7 @@ DEBUG=True
 CORS_ORIGINS=http://localhost:3000
 EOF
 
-echo "✅ Created APIS/.env"
+echo "✅ Created atelier-onboarding-api/.env"
 
 echo ""
 echo "📝 Environment files created with placeholder values."

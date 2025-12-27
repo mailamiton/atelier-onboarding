@@ -2,69 +2,140 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { ArrowLeft, Sparkles, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Sparkles, Loader2, Check, ChevronRight, ChevronLeft, Phone, Mail, User, Calendar, Clock } from 'lucide-react'
 import { api } from '@/lib/api'
 
-const registrationSchema = z.object({
-  student_name: z.string().min(2, 'Student name must be at least 2 characters'),
-  student_age: z.number().min(4, 'Age must be at least 4').max(18, 'Age must be less than 18'),
-  grade: z.string().min(1, 'Please select a grade'),
-  parent_name: z.string().min(2, 'Parent name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  phone: z.string().regex(/^[\d\s\-\+\(\)]+$/, 'Please enter a valid phone number'),
-  preferred_time: z.string().optional(),
-  experience_level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  interests: z.array(z.string()).optional(),
-  additional_notes: z.string().optional(),
-})
+const grades = ['Pre-K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '12+']
 
-type RegistrationFormData = z.infer<typeof registrationSchema>
+const generateTimeSlots = () => {
+  const morningSlots = [
+    { time: '10:00 AM - 11:00 AM', value: '10-11' },
+    { time: '11:00 AM - 12:00 PM', value: '11-12' },
+  ]
+  const eveningSlots = [
+    { time: '2:00 PM - 3:00 PM', value: '14-15' },
+    { time: '3:00 PM - 4:00 PM', value: '15-16' },
+    { time: '4:00 PM - 5:00 PM', value: '16-17' },
+    { time: '5:00 PM - 6:00 PM', value: '17-18' },
+    { time: '6:00 PM - 7:00 PM', value: '18-19' },
+    { time: '7:00 PM - 8:00 PM', value: '19-20' },
+  ]
+  return { morning: morningSlots, evening: eveningSlots }
+}
 
-const grades = ['Pre-K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-const timeSlots = ['Morning (8 AM - 12 PM)', 'Afternoon (12 PM - 4 PM)', 'Evening (4 PM - 8 PM)']
-const interestOptions = [
-  'Drawing',
-  'Painting',
-  'Sketching',
-  'Portrait Art',
-  'Landscape',
-  'Still Life',
-  'Digital Art',
-]
+const getNextThreeDays = () => {
+  const days = []
+  for (let i = 0; i < 3; i++) {
+    const date = new Date()
+    date.setDate(date.getDate() + i)
+    days.push({
+      date: date.toISOString().split('T')[0],
+      displayDate: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    })
+  }
+  return days
+}
 
 export default function RegisterPage() {
   const router = useRouter()
+  const [step, setStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([])
+  const [isVerifying, setIsVerifying] = useState(false)
+  
+  // Step 1: Parent Info
+  const [parentName, setParentName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  
+  // Step 2: Phone Verification
+  const [otp, setOtp] = useState('')
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  
+  // Step 3: Booking Details
+  const [studentName, setStudentName] = useState('')
+  const [studentAge, setStudentAge] = useState('')
+  const [grade, setGrade] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('')
+  const [experienceLevel, setExperienceLevel] = useState('')
+  const [additionalNotes, setAdditionalNotes] = useState('')
+  
+  const timeSlots = generateTimeSlots()
+  const availableDays = getNextThreeDays()
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-  } = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
-  })
-
-  const toggleInterest = (interest: string) => {
-    const updated = selectedInterests.includes(interest)
-      ? selectedInterests.filter((i) => i !== interest)
-      : [...selectedInterests, interest]
-    setSelectedInterests(updated)
-    setValue('interests', updated)
+  const sendOTP = async () => {
+    if (!phone || !/^[\d\s\-\+\(\)]+$/.test(phone)) {
+      toast.error('Please enter a valid phone number')
+      return
+    }
+    setIsVerifying(true)
+    // Simulate OTP sending
+    setTimeout(() => {
+      toast.success('OTP sent to your phone number')
+      setIsVerifying(false)
+      setStep(2)
+    }, 1000)
   }
 
-  const onSubmit = async (data: RegistrationFormData) => {
+  const verifyOTP = () => {
+    if (!otp || otp.length !== 6) {
+      toast.error('Please enter a valid 6-digit OTP')
+      return
+    }
+    // Simulate OTP verification
+    if (otp === '123456') {
+      setIsPhoneVerified(true)
+      toast.success('Phone verified successfully!')
+      // Pre-fill student name with parent name
+      if (!studentName) {
+        setStudentName(parentName)
+      }
+      setStep(3)
+    } else {
+      toast.error('Invalid OTP. Try 123456 for demo')
+    }
+  }
+
+  const handleStep1Next = () => {
+    if (!parentName || parentName.length < 2) {
+      toast.error('Please enter parent/guardian name')
+      return
+    }
+    if (!phone || !/^[\d\s\-\+\(\)]+$/.test(phone)) {
+      toast.error('Please enter a valid phone number')
+      return
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+    sendOTP()
+  }
+
+  const onSubmit = async () => {
+    if (!selectedDate) {
+      toast.error('Please select a date')
+      return
+    }
+    if (!selectedTimeSlot) {
+      toast.error('Please select a time slot')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       await api.registerStudent({
-        ...data,
-        interests: selectedInterests,
+        student_name: studentName || parentName,
+        student_age: 10,
+        grade,
+        parent_name: parentName,
+        email,
+        phone,
+        preferred_time: `${selectedDate} ${selectedTimeSlot}`,
+        experience_level: experienceLevel as any,
+        additional_notes: additionalNotes,
       })
       toast.success('Registration successful! We will contact you shortly.')
       router.push('/register/success')
@@ -77,7 +148,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <Link
             href="/"
@@ -102,226 +173,352 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <div className="grid md:grid-cols-2 gap-6">
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center mb-10">
+            <div className="flex items-center space-x-4">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                step >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                1
+              </div>
+              <div className={`w-12 h-1 ${
+                step >= 2 ? 'bg-primary-600' : 'bg-gray-200'
+              }`}></div>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                step >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                2
+              </div>
+              <div className={`w-12 h-1 ${
+                step >= 3 ? 'bg-primary-600' : 'bg-gray-200'
+              }`}></div>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                step >= 3 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                3
+              </div>
+            </div>
+          </div>
+
+          {/* Step 1: Parent Information */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Individual Information</h3>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Student Name <span className="text-red-500">*</span>
+                  <User className="w-4 h-4 inline mr-2" />
+                  Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register('student_name')}
                   type="text"
+                  value={parentName}
+                  onChange={(e) => setParentName(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  placeholder="Enter student's full name"
+                  placeholder="Enter your full name"
                 />
-                {errors.student_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.student_name.message}</p>
-                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Age <span className="text-red-500">*</span>
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register('student_age', { valueAsNumber: true })}
-                  type="number"
-                  min="4"
-                  max="18"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  placeholder="Enter age"
+                  placeholder="+91 98765 43210"
                 />
-                {errors.student_age && (
-                  <p className="mt-1 text-sm text-red-600">{errors.student_age.message}</p>
-                )}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Grade <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...register('grade')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Mail className="w-4 h-4 inline mr-2" />
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="parent@example.com"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleStep1Next}
+                disabled={isVerifying}
+                className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50"
               >
-                <option value="">Select grade</option>
-                {grades.map((grade) => (
-                  <option key={grade} value={grade}>
-                    {grade}
-                  </option>
-                ))}
-              </select>
-              {errors.grade && (
-                <p className="mt-1 text-sm text-red-600">{errors.grade.message}</p>
-              )}
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Sending OTP...
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ChevronRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </button>
             </div>
+          )}
 
-            <div className="border-t border-gray-200 pt-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Parent/Guardian Information</h3>
+          {/* Step 2: Phone Verification */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Verify Your Phone</h3>
               
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Parent/Guardian Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    {...register('parent_name')}
-                    type="text"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    placeholder="Enter parent/guardian name"
-                  />
-                  {errors.parent_name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.parent_name.message}</p>
-                  )}
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      {...register('email')}
-                      type="email"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                      placeholder="parent@example.com"
-                    />
-                    {errors.email && (
-                      <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      {...register('phone')}
-                      type="tel"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                      placeholder="+1 (555) 123-4567"
-                    />
-                    {errors.phone && (
-                      <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
-                    )}
-                  </div>
-                </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <p className="text-sm text-blue-800">
+                  We've sent a 6-digit OTP to <strong>{phone}</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  (For demo, use OTP: <strong>123456</strong>)
+                </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter 6-Digit OTP <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-center text-2xl tracking-widest font-mono"
+                  placeholder="000000"
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:border-gray-400 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5 inline mr-2" />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={verifyOTP}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg"
+                >
+                  Verify & Continue
+                  <ChevronRight className="w-5 h-5 inline ml-2" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={sendOTP}
+                className="w-full text-sm text-primary-600 hover:text-primary-700 underline"
+              >
+                Resend OTP
+              </button>
             </div>
+          )}
 
-            <div className="border-t border-gray-200 pt-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Class Preferences</h3>
+          {/* Step 3: Booking Details */}
+          {step === 3 && (
+            <div className="space-y-8">
+              <div className="border-t border-gray-200 pt-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <Calendar className="w-5 h-5 inline mr-2" />
+                  Select Date & Time
+                </h3>
               
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Time Slot
-                  </label>
-                  <select
-                    {...register('preferred_time')}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  >
-                    <option value="">Select preferred time</option>
-                    {timeSlots.map((slot) => (
-                      <option key={slot} value={slot}>
-                        {slot}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Experience Level
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {['beginner', 'intermediate', 'advanced'].map((level) => (
-                      <label
-                        key={level}
-                        className="relative flex items-center justify-center px-4 py-3 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-primary-400 transition-colors"
-                      >
-                        <input
-                          {...register('experience_level')}
-                          type="radio"
-                          value={level}
-                          className="sr-only peer"
-                        />
-                        <span className="text-sm font-medium text-gray-700 capitalize peer-checked:text-primary-600">
-                          {level}
-                        </span>
-                        <div className="absolute inset-0 border-2 border-primary-600 rounded-xl opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Areas of Interest (Select all that apply)
+                    Select Date <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {interestOptions.map((interest) => (
+                  <div className="grid grid-cols-3 gap-3">
+                    {availableDays.map((day) => (
                       <button
-                        key={interest}
+                        key={day.date}
                         type="button"
-                        onClick={() => toggleInterest(interest)}
-                        className={`flex items-center justify-between px-4 py-3 border-2 rounded-xl transition-all ${
-                          selectedInterests.includes(interest)
+                        onClick={() => setSelectedDate(day.date)}
+                        className={`px-4 py-3 border-2 rounded-xl transition-all ${
+                          selectedDate === day.date
                             ? 'border-primary-600 bg-primary-50 text-primary-700'
                             : 'border-gray-300 hover:border-primary-300'
                         }`}
                       >
-                        <span className="text-sm font-medium">{interest}</span>
-                        {selectedInterests.includes(interest) && (
-                          <Check className="w-4 h-4 text-primary-600" />
-                        )}
+                        <div className="text-sm font-medium">{day.displayDate}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Notes or Questions
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    Select Time Slot <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    {...register('additional_notes')}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
-                    placeholder="Any specific requirements or questions you have..."
-                  />
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Morning</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {timeSlots.morning.map((slot) => (
+                          <button
+                            key={slot.value}
+                            type="button"
+                            onClick={() => setSelectedTimeSlot(slot.time)}
+                            className={`px-4 py-3 border-2 rounded-xl transition-all text-sm ${
+                              selectedTimeSlot === slot.time
+                                ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                                : 'border-gray-300 hover:border-primary-300'
+                            }`}
+                          >
+                            {slot.time}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Evening</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {timeSlots.evening.map((slot) => (
+                          <button
+                            key={slot.value}
+                            type="button"
+                            onClick={() => setSelectedTimeSlot(slot.time)}
+                            className={`px-4 py-3 border-2 rounded-xl transition-all text-sm ${
+                              selectedTimeSlot === slot.time
+                                ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                                : 'border-gray-300 hover:border-primary-300'
+                            }`}
+                          >
+                            {slot.time}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-xl">
-              <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-blue-800">
-                <strong>Special Offer:</strong> Register today and get 50% scholarship on your enrollment! 
-                Limited slots available.
+              <div className="border-t border-gray-200 pt-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h3>
+                
+                <div className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Student Name
+                      </label>
+                      <input
+                        type="text"
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        placeholder="Enter student's full name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Grade
+                      </label>
+                      <select
+                        value={grade}
+                        onChange={(e) => setGrade(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Select grade</option>
+                        {grades.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Experience Level
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['beginner', 'intermediate', 'advanced'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setExperienceLevel(level)}
+                          className={`px-4 py-3 border-2 rounded-xl transition-all capitalize ${
+                            experienceLevel === level
+                              ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                              : 'border-gray-300 hover:border-primary-300'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Additional Notes or Questions
+                    </label>
+                    <textarea
+                      value={additionalNotes}
+                      onChange={(e) => setAdditionalNotes(e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      placeholder="Any specific requirements or questions you have..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-xl">
+                <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  <strong>Special Offer:</strong> Register today and get 50% scholarship on your enrollment! 
+                  Limited slots available.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:border-gray-400 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5 inline mr-2" />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={onSubmit}
+                  disabled={isSubmitting}
+                  className="flex-1 flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Book My Free Demo Class'
+                  )}
+                </button>
+              </div>
+
+              <p className="text-center text-sm text-gray-600">
+                By submitting this form, you agree to our Terms of Service and Privacy Policy.
               </p>
             </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Book My Free Demo Class'
-              )}
-            </button>
-
-            <p className="text-center text-sm text-gray-600">
-              By submitting this form, you agree to our Terms of Service and Privacy Policy.
-            </p>
-          </form>
+          )}
         </div>
       </div>
     </div>
